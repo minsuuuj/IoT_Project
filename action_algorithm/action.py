@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 keypoints_name = ['nose',
                 'eye_left', 'eye_right',
@@ -26,18 +27,22 @@ class Kpoints:
         self.knee_right = keypoint_list[10]
         self.ankle_left = keypoint_list[11]
         self.ankle_right = keypoint_list[12]
-        self.neck = keypoint_list[13] 
+        self.neck = keypoint_list[13]
+
+        # mass center 구하기
+        total_x = 0
+        total_y = 0
+        for x, y in keypoint_list:
+            total_x =+ x
+            total_y =+ y
+        self.mc_x = total_x / len(keypoint_list)
+        self.mc_y = total_y / len(keypoint_list)
     
     def __iter__(self):
         fields = [self.nose, self.shoulder_left, self.shoulder_right, self.elbow_left, self.elbow_right, self.wrist_left, self.wrist_right, self.hip_left, self.hip_right, self.knee_left, self.knee_right, self.ankle_left, self.ankle_right, self.neck,]
 
         for field in fields:
-            yield field
-
-    def center_of_mass(self):
-        for i in range(16):
-            pass
-    
+            yield field    
 
 frame = '1-1_606-C08_2D.json'
 
@@ -55,10 +60,7 @@ def nasNF_to_trt_calibration(nas_keypoints):
         sorted_keypoints.append(nas_keypoints_fair[i])
 
     return sorted_keypoints
-
     
-
-
 
 with open(frame, 'r') as data:
     C08_606 = json.load(data)
@@ -71,6 +73,7 @@ for keypoint in curr:
 
 
 width_sholder = abs(curr.shoulder_left[0] - curr.shoulder_right[0])
-height = abs(curr.neck[1])
+height = abs(curr.neck[1] - (curr.ankle_left[1] + curr.ankle_right[1]) / 2)
 
-    
+print(width_sholder, height)
+print(curr.mc_x, curr.mc_y)
