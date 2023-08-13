@@ -12,6 +12,9 @@ from trt_pose.draw_objects import DrawObjects
 from trt_pose.parse_objects import ParseObjects
 import argparse
 import os.path
+import json
+import numpy as np
+from action_copy import *
 
 '''
 hnum: 0 based human index
@@ -94,37 +97,45 @@ def preprocess(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
-def execute(img, src, t):
-    color = (0, 255, 0)
+def execute(img, src, t, frame_cnt):
+    color = (255, 0, 0)
     data = preprocess(img)
     cmap, paf = model_trt(data)
     cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
     counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
     fps = 1.0 / (time.time() - t)
+
     for i in range(counts[0]):
-        keypoints = get_keypoint(objects, i, peaks)
-        for j in range(len(keypoints)):
-            if keypoints[j][1]:
-                x = round(keypoints[j][2] * WIDTH * X_compress)
-                y = round(keypoints[j][1] * HEIGHT * Y_compress)
-                cv2.circle(src, (x, y), 3, color, 2)
-                cv2.putText(src , "%d" % int(keypoints[j][0]), (x + 5, y),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
-                cv2.circle(src, (x, y), 3, color, 2)
-    print("FPS:%f "%(fps))
-    #draw_objects(img, counts, objects, peaks)
+        keypoints = Kpoints(get_keypoint(objects, i, peaks))
+
+        mc_x = round(keypoints.mc[1] * WIDTH * X_compress)
+        mc_y = round(keypoints.mc[0] * HEIGHT * Y_compress)
+        cv2.circle(src, (mc_x, mc_y), 5, (255, 255, 255), 7)
+        
+
+        if frame_cnt == 0:
+            action_recog.append(keypoints)
+            print('action')
+            # action_list = action_recog()    # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
+
+    # print("FPS:%f "%(fps))
+    draw_objects(src, counts, objects, peaks)
+
+    # print(action_list)
 
     cv2.putText(src , "FPS: %f" % (fps), (20, 20),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
-    #out_video.write(src)
+    out_video.write(src)
+
     return src
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-# ret_val, img = cap.read()
-# fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-# out_video = cv2.VideoWriter('/tmp/output.mp4', fourcc, cap.get(cv2.CAP_PROP_FPS), (640, 480))
-# count = 0
+ret_val, img = cap.read()
+fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+out_video = cv2.VideoWriter('test.mp4', fourcc, cap.get(cv2.CAP_PROP_FPS), (640, 480))
+count = 0
 
 X_compress = 640.0 / WIDTH * 1.0
 Y_compress = 480.0 / HEIGHT * 1.0
@@ -135,23 +146,31 @@ if cap is None:
 
 parse_objects = ParseObjects(topology)
 draw_objects = DrawObjects(topology)
+action_recog = Action_recognition()
+
+frame_num = 0
 
 while cap.isOpened() and True:
+    if frame_num == 30:
+        frame_num = 0
     t = time.time()
     ret_val, dst = cap.read()
     if ret_val == False:
         print("Camera read Error")
         break
-
+    
     img = cv2.resize(dst, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
-    src = execute(img, dst, t)
+    src = execute(img, dst, t, frame_num)
+    src = cv2.flip(src, 1)
 
     cv2.imshow('src', src)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-    #count += 1
+
+    count += 1
+    frame_num += 1
 
 cv2.destroyAllWindows()
-#out_video.release()
+out_video.release()
 cap.release()
