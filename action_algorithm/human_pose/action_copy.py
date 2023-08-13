@@ -44,6 +44,13 @@ class Kpoints:
         self.neck = keypoint_list[17][1:]
 
         self.mc = self.calc_mc(keypoint_list)   # [mc_y, mc_x]
+
+        self.is_box_point = self.check_box_point()
+
+        if self.is_box_point:
+            self.bottom, self.top = self.find_bot_top()
+        else:
+            self.bottom, self.top = [None, None], [None, None]
     
     def __iter__(self):
         fields = [self.nose, self.shoulder_left, self.shoulder_right, self.elbow_left, self.elbow_right, self.wrist_left, self.wrist_right,\
@@ -66,7 +73,37 @@ class Kpoints:
             mc_y = 0
 
         return [mc_y, mc_x]
+    
+    def check_box_point(self):
+        box_point_list = [self.shoulder_left, self.shoulder_right, self.ankle_left, self.ankle_right]
+        for p in box_point_list:
+            if None in p:
+                return False
+        return True 
+    
+    def find_bot_top(self):
+        box_point_list = [self.shoulder_left, self.shoulder_right, self.ankle_left, self.ankle_right]
+        box_point_list = [box_point for box_point in box_point_list if box_point[0] != None]
 
+        bottom_x = 0
+        bottom_y = 0
+        top_x = 1
+        top_y = 1
+        for p in box_point_list:
+            x, y = p
+            if x - bottom_x > 0:
+                bottom_x = x
+            if y - bottom_y > 0:
+                bottom_y = y
+
+            if x - top_x < 0:
+                top_x = x
+            if y - top_y < 0:
+                top_y = y
+
+        return [bottom_x, bottom_y], [top_x, top_y]
+    
+    
 
 class Keypoint_sequence:
     def __init__(self):
@@ -86,35 +123,14 @@ class Action_recognition(Keypoint_sequence):
     lying_threshold = 0
     eating_threshold = 0.01
 
+    def __init__(self)
+
+
     def __call__(self):
-        self.present_width_shoulder = calc_dist(self.present.shoulder_left, self.present.shoulder_right)
-        self.present_height = calc_dist()
-        self.bottom, self.top = self.find_bot_top()
-
         # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
-        return [self.is_standing, self.is_standing, *self.is_lying, self.is_eating, self.is_falling_down]
+        self.bb_width = self.present.
+        return [self.is_standing(), self.is_standing(), *self.is_lying(), self.is_eating(), self.is_falling_down()]
         
-    
-    def find_bot_top(self):
-        anchor_list = [self.present.shoulder_left, self.present.shoulder_right, self.present.ankle_left, self.present.ankle_right]
-
-        bottom_x = 0
-        bottom_y = 0
-        top_x = 1
-        top_y = 1
-        for p in anchor_list:
-            x, y = p
-            if x > bottom_x:
-                bottom_x = x
-            if y > bottom_y:
-                bottom_y = y
-
-            if x < top_x:
-                top_x = x
-            if y < top_y:
-                top_y = y
-        return [bottom_x, bottom_y], [top_x, top_y]
-
     def is_standing(self):
         ...
     

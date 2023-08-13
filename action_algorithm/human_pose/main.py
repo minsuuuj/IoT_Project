@@ -97,6 +97,21 @@ def preprocess(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
+def draw_bounding_box(img, src, keypoints):
+    bottom_coor = (round(keypoints.bottom[1] * WIDTH * X_compress), round(keypoints.bottom[0] * HEIGHT * Y_compress))
+    top_coor = (round(keypoints.top[1] * WIDTH * X_compress), round(keypoints.top[0] * HEIGHT * Y_compress))
+    print(bottom_coor, top_coor)
+    cv2.rectangle(src, bottom_coor, top_coor, (255, 100, 0, 100), 2)
+
+    # transparent_color = (0, 0, 255, 100)  # (B, G, R, Alpha)
+
+    # # 색칠할 영역 생성
+    # overlay = img.copy()
+    # cv2.rectangle(overlay, (100, 100), (200, 200), transparent_color, -1)
+
+    # # 영역을 원본 이미지에 합성
+    # cv2.addWeighted(overlay, 0.5, src, 0.5, 0, src)
+
 def execute(img, src, t, frame_cnt):
     color = (255, 0, 0)
     data = preprocess(img)
@@ -111,13 +126,14 @@ def execute(img, src, t, frame_cnt):
         mc_x = round(keypoints.mc[1] * WIDTH * X_compress)
         mc_y = round(keypoints.mc[0] * HEIGHT * Y_compress)
         cv2.circle(src, (mc_x, mc_y), 5, (255, 255, 255), 7)
-        
 
+        if keypoints.check_box_point():
+            draw_bounding_box(img, src, keypoints)
+        
         if frame_cnt == 0:
             action_recog.append(keypoints)
-            print('action')
             # action_list = action_recog()    # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
-
+        
     # print("FPS:%f "%(fps))
     draw_objects(src, counts, objects, peaks)
 
