@@ -103,7 +103,6 @@ class Kpoints:
 
         return [bottom_x, bottom_y], [top_x, top_y]
     
-    
 
 class Keypoint_sequence:
     def __init__(self):
@@ -123,34 +122,51 @@ class Action_recognition(Keypoint_sequence):
     lying_threshold = 0
     eating_threshold = 0.01
 
-    def __init__(self)
+    # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
+    action_status = [False * 6]
 
+    def __init__(self):
+        self.bb_ratio: float = None
 
     def __call__(self):
-        # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
-        self.bb_width = self.present.
-        return [self.is_standing(), self.is_standing(), *self.is_lying(), self.is_eating(), self.is_falling_down()]
+        
+        if self.present.is_box_point():
+            bb_width = self.present.bottom[1] - self.present.top[1]
+            bb_height = self.present.bottom[0] - self.present.top[0]
+            self.bb_ratio = bb_width / bb_height
+
+            self.is_standing()
+            self.is_sitting()
+            self.is_lying()
+            
+        self.is_eating()
+        self.is_falling_down()
+
+        return self.action_status
         
     def is_standing(self):
-        ...
+        if self.bb_ratio - self.standing_threshold > 0:
+            self.action_status[0] = True
+
     
     def is_sitting(self):
-        ...
+        if not self.action_status[0]:
+            if self.bb_ratio - self.sitting_threshold > 0:
+                self.action_status[1] = True
 
     def is_lying(self):
-        ...
+        if not self.action_status[0] and not self.action_status[1]:
+            self.action_status[2] = True
+            if self.present.nose[0] is None:
+                self.action_status[3] = True
 
     def is_eating(self):
         if calc_dist(self.present.wrist_left, self.present.nose) < self.eating_threshold \
             or calc_dist(self.present.wrist_right, self.present.nose) < self.eating_threshold:
-            return 1
-        
-        return 0
+            self.action_status[4] = True
     
     def is_falling_down(self):
         if self.before1:
             moving_dist_mc = calc_dist(self.before1.mc, self.present.mc)
             if moving_dist_mc > self.falling_threshold:
-                return True
-            
-        return False
+                self.action_status[5] = True
