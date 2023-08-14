@@ -100,7 +100,6 @@ def preprocess(image):
 def draw_bounding_box(img, src, keypoints):
     bottom_coor = (round(keypoints.bottom[1] * WIDTH * X_compress), round(keypoints.bottom[0] * HEIGHT * Y_compress))
     top_coor = (round(keypoints.top[1] * WIDTH * X_compress), round(keypoints.top[0] * HEIGHT * Y_compress))
-    print(bottom_coor, top_coor)
     cv2.rectangle(src, bottom_coor, top_coor, (255, 100, 0, 100), 2)
 
     # transparent_color = (0, 0, 255, 100)  # (B, G, R, Alpha)
@@ -132,14 +131,13 @@ def execute(img, src, t, frame_cnt):
         
         if frame_cnt == 0:
             action_recog.append(keypoints)
-            # action_list = action_recog()    # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
-        
+            action_recog()    # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 낙하]
+            action_recog.print_action()
+
     # print("FPS:%f "%(fps))
     draw_objects(src, counts, objects, peaks)
 
-    # print(action_list)
-
-    cv2.putText(src , "FPS: %f" % (fps), (20, 20),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+    cv2.putText(src, "FPS: %f" % (fps), (20, 20),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
     out_video.write(src)
 
     return src

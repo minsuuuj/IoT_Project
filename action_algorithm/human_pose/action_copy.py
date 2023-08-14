@@ -13,9 +13,12 @@ keypoints_name = ['nose',
                 'neck']
 
 def calc_dist(vector1, vector2):
-    distance = np.sum((np.array(vector1) - np.array(vector2))**2)**0.5
-    return distance
-
+    if vector1[1] and vector2[1]:
+        distance = np.sum((np.array(vector1) - np.array(vector2))**2)**0.5
+        return distance
+    else:
+        return None
+        
 def calc_center(vector1, vector2):
     return list((np.array(vector1)+np.array(vector2))/2)
 
@@ -111,33 +114,36 @@ class Keypoint_sequence:
         self.present: Kpoints = None
 
     def append(self, kp):
-        self.before2 = self.before1
-        self.before1 = self.present
         self.present = kp
+        self.before1 = self.present
+        self.before2 = self.before1
+        
         
 class Action_recognition(Keypoint_sequence):
     falling_threshold = 0.5
     standing_threshold = 4
     sitting_threshold = 2
-    lying_threshold = 0
-    eating_threshold = 0.01
+    lying_threshold = 1.5
+    eating_threshold = 0.3
 
     # onehot encoding [서기, 앉기, 눕기, 뒤집어 자기, 먹기, 떨어지기]
-    action_status = [False * 6]
+    action_status = [False] * 6
 
     def __init__(self):
         self.bb_ratio: float = None
 
     def __call__(self):
-        
-        if self.present.is_box_point():
+        self.action_status = [False] * 6
+        if self.present.is_box_point:
             bb_width = self.present.bottom[1] - self.present.top[1]
             bb_height = self.present.bottom[0] - self.present.top[0]
-            self.bb_ratio = bb_width / bb_height
+            self.bb_ratio = bb_height / bb_width
 
             self.is_standing()
             self.is_sitting()
             self.is_lying()
+        else:
+            self.bb_ratio = None
             
         self.is_eating()
         self.is_falling_down()
@@ -148,7 +154,6 @@ class Action_recognition(Keypoint_sequence):
         if self.bb_ratio - self.standing_threshold > 0:
             self.action_status[0] = True
 
-    
     def is_sitting(self):
         if not self.action_status[0]:
             if self.bb_ratio - self.sitting_threshold > 0:
@@ -156,17 +161,32 @@ class Action_recognition(Keypoint_sequence):
 
     def is_lying(self):
         if not self.action_status[0] and not self.action_status[1]:
-            self.action_status[2] = True
-            if self.present.nose[0] is None:
-                self.action_status[3] = True
+            if self.bb_ratio < self.lying_threshold:
+                self.action_status[2] = True
+                if self.present.nose[0] is None:
+                    self.action_status[3] = True
 
     def is_eating(self):
-        if calc_dist(self.present.wrist_left, self.present.nose) < self.eating_threshold \
-            or calc_dist(self.present.wrist_right, self.present.nose) < self.eating_threshold:
-            self.action_status[4] = True
+        try:
+            if calc_dist(self.present.wrist_left, self.present.nose) < self.eating_threshold \
+                or calc_dist(self.present.wrist_right, self.present.nose) < self.eating_threshold:
+                self.action_status[4] = True
+        except:
+            pass
     
     def is_falling_down(self):
-        if self.before1:
-            moving_dist_mc = calc_dist(self.before1.mc, self.present.mc)
-            if moving_dist_mc > self.falling_threshold:
-                self.action_status[5] = True
+        try:
+            if self.before1:
+                moving_dist_mc = calc_dist(self.before1.mc, self.present.mc)
+                if moving_dist_mc > self.falling_threshold:
+                    self.action_status[5] = True
+        except:
+            pass
+
+    def print_action(self, src):
+        action_key = ['서기', '앉기', '눕기', '뒤집어 자기', '먹기', '낙하']
+
+        for i, check in enumerate(self.action_status):
+            if check:
+                print(action_key[i], end=' ')
+        print()
